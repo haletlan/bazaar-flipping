@@ -307,9 +307,9 @@ window.SBUI = (function(){
     px = px || 20;
     return `<img class="ico" src="${esc(iconUrl(name, px))}" width="${px}" height="${px}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`;
   }
-  const wikiUrl = name => "https://wiki.hypixel.net/" + page(name);
+  const wikiUrl = name => "https://hypixelskyblock.minecraft.wiki/w/" + page(name);
   function wikiLink(name, label){
-    return `<a class="wiki" href="${esc(wikiUrl(name))}" target="_blank" rel="noopener">${label || "Otevřít na Hypixel Wiki"}</a>`;
+    return `<a class="wiki" href="${esc(wikiUrl(name))}" target="_blank" rel="noopener">${label || "Otevřít na SkyBlock Wiki"}</a>`;
   }
   return { coins, pct: m => nf1.format(m*100) + " %", nf0, nf1, esc, icon, iconUrl, wikiUrl, wikiLink };
 })();
