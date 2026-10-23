@@ -34,6 +34,7 @@ Recepty a požadavky na kolekce pocházejí z komunitního repozitáře [NotEnou
 
 ```
 index.html              stránka a záložky
+favicon.svg             ikonka webu (pixelová mince s šipkami), PNG/ICO verze vedle
 css/style.css           vzhled (světlý i tmavý režim)
 js/shared.js            formátování čísel, ikonky, odkazy na wiki
 js/flip.js              záložka Flipping, historie cen a grafy
