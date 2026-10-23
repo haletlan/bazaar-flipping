@@ -158,6 +158,24 @@ button.cell:hover{border-color:var(--gold)}
 .summary .v.pos{color:var(--emerald)} .summary .v.neg{color:var(--redstone)}
 .summary .s{font-size:12px;color:var(--muted)}
 h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22px;margin:0 0 4px}
+.ico{display:inline-block;vertical-align:-4px;margin-right:8px;image-rendering:pixelated;object-fit:contain}
+.ccard .titlerow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ccard .titlerow .ico{margin:0}
+.wiki{font-size:14px;color:var(--focus)}
+.cell .ico{margin:0;align-self:center}
+.cell .cn{display:block}
+.cell .ico + .cn{display:none}
+.cell.out .ico{width:44px;height:44px}
+.tree{margin:10px 0 0;padding:0;list-style:none;font-variant-numeric:tabular-nums}
+.tree ul{list-style:none;margin:2px 0 2px 10px;padding-left:16px;border-left:1px dashed var(--line)}
+.tree li{margin:3px 0}
+.tree summary{cursor:pointer}
+.tree .nm{font-weight:600}
+.tree .how{color:var(--muted);margin-left:6px}
+.tree .how.craft{color:var(--emerald)}
+.tree .how.miss{color:var(--redstone)}
+.leaf{display:block;padding-left:18px}
+.subsec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:19px;margin:26px 0 4px}
 </style>
 </head>
 <body>
@@ -165,7 +183,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
   <header class="top">
     <div>
       <h1>Bazaar Flipper</h1>
-      <p class="sub">Flipping a crafting na bazaaru s živými cenami z Hypixel API. Obnovuje se každou minutu.</p>
+      <p class="sub">Flipping, crafting a NPC flip na bazaaru s živými cenami z Hypixel API. Obnovuje se každou minutu.</p>
     </div>
     <div class="status">
       <span class="dot" id="dot"></span><span id="statusText">Načítám…</span>
@@ -174,8 +192,9 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Sekce">
-    <button type="button" class="tab" id="tabFlip" role="tab" aria-controls="tab-flip" aria-selected="true">Flipping</button>
-    <button type="button" class="tab" id="tabCraft" role="tab" aria-controls="tab-craft" aria-selected="false">Crafting</button>
+    <button type="button" class="tab" data-tab="flip" role="tab" aria-controls="tab-flip" aria-selected="true">Flipping</button>
+    <button type="button" class="tab" data-tab="craft" role="tab" aria-controls="tab-craft" aria-selected="false">Crafting</button>
+    <button type="button" class="tab" data-tab="npc" role="tab" aria-controls="tab-npc" aria-selected="false">NPC flip</button>
   </nav>
 
   <div id="errorBox" class="error" hidden></div>
@@ -233,7 +252,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
 
   </div>
 
-  <div id="tab-craft" hidden>
+  <div id="tab-craft" role="tabpanel" hidden>
     <div class="csearch">
       <label for="cq">Najdi item a uvidíš recept, cenu craftu a potřebnou kolekci</label>
       <input id="cq" type="search" autocomplete="off" placeholder="např. Enchanted Diamond Block, Aspect of the End" role="combobox" aria-expanded="false" aria-controls="cresults" aria-autocomplete="list">
@@ -245,15 +264,56 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
     <div class="tablebox" style="margin-top:12px">
       <table>
         <thead><tr id="chead"></tr></thead>
-        <tbody id="cbody"><tr><td colspan="7" class="empty">Čekám na data z bazaaru…</td></tr></tbody>
+        <tbody id="cbody"><tr><td colspan="8" class="empty">Čekám na data z bazaaru…</td></tr></tbody>
       </table>
     </div>
     <p class="note">Recepty a požadavky na kolekce pocházejí z komunitního repozitáře NotEnoughUpdates. Po velkých updatech SkyBlocku se můžou o pár dní opožďovat.</p>
+  </div>
+  <div id="tab-npc" role="tabpanel" hidden>
+    <p class="sub" style="margin:0 0 16px">Itemy, které koupíš na bazaaru levněji, než za kolik je vykoupí NPC. Prodej NPC je bez daně a okamžitý, riziko je jen v tom, že tě u buy orderu někdo předběhne.</p>
+    <div class="tablebox">
+      <table>
+        <thead><tr id="nhead"></tr></thead>
+        <tbody id="nbody"><tr><td colspan="9" class="empty">Čekám na data z bazaaru a výkupní ceny NPC…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="note">Insta-buy: koupíš hned za nejnižší sell offer, zisk máš okamžitě. Buy order: dáš objednávku o 0,1 nad nejvyšší a čekáš, ale zisk je vyšší. Zisk za hodinu počítá s kapitálem a podílem na objemu z nastavení ve Flippingu. U insta-buy je navíc omezený tím, kolik kusů je zrovna v nejlevnější nabídce.</p>
+    <p class="note">Výkupní ceny NPC jsou z oficiálního Hypixel API.</p>
   </div>
 
   <footer>Není spojeno s Hypixel Inc. ani jím schváleno. Data: api.hypixel.net (bez API klíče).</footer>
 </div>
 
+<script>
+// Shared helpers: formatting, item icons (community wiki renders) and links to the official Hypixel wiki
+window.SBUI = (function(){
+  const nf1 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:1, minimumFractionDigits:1});
+  const nf0 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0});
+  function coins(n){
+    const a = Math.abs(n);
+    if (a >= 1e9) return nf1.format(n/1e9)+" B";
+    if (a >= 1e6) return nf1.format(n/1e6)+" M";
+    if (a >= 1e4) return nf1.format(n/1e3)+" k";
+    if (a >= 100) return nf0.format(n);
+    return nf1.format(n);
+  }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const page = name => encodeURIComponent(String(name).trim().replace(/ /g,"_")).replace(/%2F/g,"/");
+  function iconUrl(name, px){
+    return "https://hypixelskyblock.minecraft.wiki/w/Special:FilePath/" + page(name) + ".png?width=" + (px > 32 ? 64 : 32);
+  }
+  // Image that quietly disappears when the wiki has no render for the item
+  function icon(name, px){
+    px = px || 20;
+    return `<img class="ico" src="${esc(iconUrl(name, px))}" width="${px}" height="${px}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`;
+  }
+  const wikiUrl = name => "https://wiki.hypixel.net/" + page(name);
+  function wikiLink(name, label){
+    return `<a class="wiki" href="${esc(wikiUrl(name))}" target="_blank" rel="noopener">${label || "Otevřít na Hypixel Wiki"}</a>`;
+  }
+  return { coins, pct: m => nf1.format(m*100) + " %", nf0, nf1, esc, icon, iconUrl, wikiUrl, wikiLink };
+})();
+</script>
 <script>
 (function(){
   "use strict";
@@ -435,6 +495,8 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
       if (!r.ok) return;
       const j = await r.json();
       (j.items||[]).forEach(it => { if (it.id && it.name) state.names[it.id] = stripColor(it.name); });
+      (window.SB_STATE = window.SB_STATE || {}).items = j.items;
+      window.dispatchEvent(new CustomEvent("items-loaded", {detail: j.items}));
       if (state.products) render();
     } catch(e){ /* names are optional */ }
   }
@@ -454,6 +516,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
       $("errorBox").hidden = true;
       setStatus("ok", "Aktualizováno " + new Date(state.lastUpdated).toLocaleTimeString("cs-CZ"));
       render();
+      (window.SB_STATE = window.SB_STATE || {}).products = j.products;
       window.dispatchEvent(new CustomEvent("bazaar-updated", {detail: j.products}));
     } catch(e){
       setStatus("err","Data se nepodařilo načíst");
@@ -674,7 +737,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
       const w = Math.max(2, Math.round(r.perHour/maxPH*56));
       const hold = r.holdInfo ? (r.holdInfo.full ? "≥ " : "") + fmtDur(r.holdInfo.ms) : '<span class="muted">–</span>';
       let html = `<tr class="row" tabindex="0" data-id="${esc(r.id)}" aria-expanded="${open}">
-        <td><span class="item">${esc(r.name)}</span>${tags}</td>
+        <td>${SBUI.icon(r.name)}<span class="item">${esc(r.name)}</span>${tags}</td>
         <td>${coins(r.buy)}</td>
         <td>${coins(r.sell)}</td>
         <td class="pos">${coins(r.profit)}</td>
@@ -686,7 +749,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
         <td class="gold"><span class="bar" style="width:${w}px"></span>${coins(r.perHour)}</td>
         <td>${r.orders}</td></tr>`;
       if (open){
-        html += `<tr class="detail"><td colspan="${NCOLS}">${bigChart(r)}<div class="book">
+        html += `<tr class="detail"><td colspan="${NCOLS}"><p style="margin:14px 18px 0">${SBUI.wikiLink(r.name)}</p>${bigChart(r)}<div class="book">
           ${bookTable(r.ordersBook, "Buy ordery (sem prodáváš okamžitě)")}
           ${bookTable(r.offers, "Sell offery (odsud kupuješ okamžitě)")}
         </div></td></tr>`;
@@ -774,22 +837,11 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
 (function(){
   "use strict";
   const $ = id => document.getElementById(id);
-  const nf1 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:1, minimumFractionDigits:1});
-  const nf0 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0});
-  function coins(n){
-    const a = Math.abs(n);
-    if (a >= 1e9) return nf1.format(n/1e9)+" B";
-    if (a >= 1e6) return nf1.format(n/1e6)+" M";
-    if (a >= 1e4) return nf1.format(n/1e3)+" k";
-    if (a >= 100) return nf0.format(n);
-    return nf1.format(n);
-  }
-  const pct = m => nf1.format(m*100) + " %";
-  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  const { coins, pct, nf0, esc, icon, wikiLink } = window.SBUI;
   const norm = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 
   let DB = null, products = null, cur = null, recipeIdx = 0, sel = -1, hits = [];
-  const state = { sortKey:"profit", sortDir:-1 };
+  const state = { sortKey:"treeProfit", sortDir:-1 };
   function db(){
     if (!DB){
       DB = JSON.parse($("recipes-data").textContent);
@@ -829,18 +881,60 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
     }
     return {order, insta, missing};
   }
-  function subCraft(id){
+
+  // ---------- whole craft tree: cheapest way to get one unit of an item ----------
+  // Returns {unit, mode:"buy"|"craft", ri (recipe index), buy (bazaar price or null)} or null.
+  function bestUnit(id, memo, stack){
+    if (memo.has(id)) return memo.get(id);
+    const pr = prices(id);
+    const buy = pr && pr.order != null ? pr.order : null;
+    let best = buy != null ? {unit:buy, mode:"buy", buy} : null;
     const r = DB.recipes[id];
-    if (!r) return null;
-    let best = null;
-    r.r.forEach(rec => {
-      const c = craftCost(rec);
-      if (c.missing.length) return;
-      const per = c.order/(rec.c||1);
-      if (!best || per < best) best = per;
-    });
+    if (r && !stack.has(id) && stack.size < 8){
+      stack.add(id);
+      r.r.forEach((rec, ri) => {
+        let sum = 0;
+        for (const [ing, q] of Object.entries(ingredients(rec))){
+          const b = bestUnit(ing, memo, stack);
+          if (!b) return;
+          sum += b.unit*q;
+        }
+        const unit = sum/(rec.c||1);
+        if (unit > 0 && (!best || unit < best.unit*0.999)) best = {unit, mode:"craft", ri, buy};
+      });
+      stack.delete(id);
+    }
+    memo.set(id, best);
     return best;
   }
+  function buildNode(id, qty, memo, depth){
+    const b = bestUnit(id, memo, new Set());
+    const node = {id, qty, b, children:[]};
+    if (b && b.mode === "craft" && depth < 8){
+      const rec = DB.recipes[id].r[b.ri];
+      node.crafts = Math.ceil(qty/(rec.c||1));
+      for (const [ing, q] of Object.entries(ingredients(rec))) node.children.push(buildNode(ing, q*node.crafts, memo, depth+1));
+    }
+    return node;
+  }
+  function collect(node, list, missing){
+    if (!node.b){ missing.add(node.id); return; }
+    if (node.b.mode === "buy"){
+      const e = list.get(node.id) || {id:node.id, qty:0, unit:node.b.unit};
+      e.qty += node.qty; list.set(node.id, e); return;
+    }
+    node.children.forEach(c => collect(c, list, missing));
+  }
+  function treeCost(rec, memo){
+    let sum = 0;
+    for (const [ing, q] of Object.entries(ingredients(rec))){
+      const b = bestUnit(ing, memo, new Set([cur]));
+      if (!b) return null;
+      sum += b.unit*q;
+    }
+    return sum;
+  }
+
   function reqHtml(r){
     if (r.q) return `<span class="req">Potřebná kolekce: <b>${esc(r.q)}</b></span>`;
     if (r.s){
@@ -871,7 +965,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
     ul.innerHTML = hits.map((h,i) => {
       const r = DB.recipes[h.id];
       const tag = r.q ? esc(r.q) : (products && products[h.id] ? "na bazaaru" : "");
-      return `<li role="option" id="cr-${i}" data-i="${i}" aria-selected="${i===sel}"><span>${esc(h.n)}</span><small>${tag}</small></li>`;
+      return `<li role="option" id="cr-${i}" data-i="${i}" aria-selected="${i===sel}"><span>${icon(h.n, 20)}${esc(h.n)}</span><small>${tag}</small></li>`;
     }).join("");
     ul.hidden = false; inp.setAttribute("aria-expanded","true");
     inp.setAttribute("aria-activedescendant", sel >= 0 ? "cr-"+sel : "");
@@ -896,6 +990,14 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
   $("cq").addEventListener("blur", () => setTimeout(() => { hits = []; showResults(); }, 120));
 
   // ---------- item card ----------
+  function treeHtml(n){
+    const nm = name(n.id);
+    const head = `${icon(nm, 18)}<span class="nm">${esc(nm)}</span> × ${nf0.format(n.qty)}`;
+    if (!n.b) return `<li><span class="leaf">${head}<span class="how miss">není na bazaaru</span></span></li>`;
+    if (n.b.mode === "buy") return `<li><span class="leaf">${head}<span class="how">koupit za ${coins(n.b.unit*n.qty)}</span></span></li>`;
+    const save = n.b.buy != null ? `, ušetříš ${coins((n.b.buy - n.b.unit)*n.qty)}` : ", koupit se nedá";
+    return `<li><details open><summary>${head}<span class="how craft">vycraftit ${n.crafts}×${save}</span></summary><ul>${n.children.map(treeHtml).join("")}</ul></details></li>`;
+  }
   function renderCard(){
     const card = $("ccard");
     if (!cur){ card.hidden = true; return; }
@@ -903,48 +1005,64 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
     const rec = r.r[Math.min(recipeIdx, r.r.length-1)];
     const count = rec.c || 1;
     const t = tax();
-    let html = `<h2>${esc(name(cur))}</h2>${reqHtml(r)}`;
+    const curName = name(cur);
+    let html = `<div class="titlerow">${icon(curName, 48)}<h2>${esc(curName)}</h2>${wikiLink(curName)}</div>${reqHtml(r)}`;
     if (r.r.length > 1){
       html += `<div class="rswitch" role="group" aria-label="Recepty">` + r.r.map((x,i) =>
         `<button type="button" data-rec="${i}" aria-pressed="${i===recipeIdx}">Recept ${i+1}${x.c && x.c>1 ? ` (${x.c} ks)` : ""}</button>`).join("") + `</div>`;
     }
     const cell = c => {
       if (!c) return `<div class="cell empty" aria-hidden="true"></div>`;
-      const nm = esc(name(c[0])), q = `<span class="q">${c[1]}</span>`;
+      const n = name(c[0]), nm = esc(n), inner = `${icon(n, 32)}<span class="cn">${nm}</span><span class="q">${c[1]}</span>`;
       return DB.recipes[c[0]]
-        ? `<button type="button" class="cell" data-open="${esc(c[0])}" title="Otevřít recept: ${nm}">${nm}${q}</button>`
-        : `<div class="cell" title="${nm}">${nm}${q}</div>`;
+        ? `<button type="button" class="cell" data-open="${esc(c[0])}" title="Otevřít recept: ${nm}">${inner}</button>`
+        : `<div class="cell" title="${nm}">${inner}</div>`;
     };
     html += `<div class="cgrid-wrap"><div class="cgrid" role="img" aria-label="Rozložení receptu">${rec.g.map(cell).join("")}</div>
       <span class="arrow" aria-hidden="true">→</span>
-      <div class="cell out">${esc(name(cur))}<span class="q">${count}×</span></div></div>`;
+      <div class="cell out" title="${esc(curName)}">${icon(curName, 44)}<span class="cn">${esc(curName)}</span><span class="q">${count}×</span></div></div>`;
 
     if (!products){
       card.innerHTML = html + `<p class="note">Čekám na ceny z bazaaru…</p>`; card.hidden = false; return;
     }
+    const memo = new Map();
     const ing = ingredients(rec);
     const rows = Object.entries(ing).map(([id,q]) => {
-      const pr = prices(id);
-      const nm = DB.recipes[id] ? `<button type="button" class="linkbtn" data-open="${esc(id)}">${esc(name(id))}</button>` : esc(name(id));
+      const pr = prices(id), n = name(id);
+      const nm = DB.recipes[id] ? `<button type="button" class="linkbtn" data-open="${esc(id)}">${esc(n)}</button>` : esc(n);
+      const b = bestUnit(id, memo, new Set([cur]));
+      let sub = `<span class="muted">–</span>`;
+      if (b && b.mode === "craft") sub = b.buy != null ? `<span class="cheaper">craft za ${coins(b.unit*q)}, ušetříš ${coins((b.buy-b.unit)*q)}</span>` : `craft za ${coins(b.unit*q)}`;
+      else if (DB.recipes[id] && b) sub = `<span class="muted">koupit je levnější</span>`;
       if (!pr || pr.order == null){
-        return `<tr><td>${nm}</td><td>${nf0.format(q)}</td><td colspan="3" class="muted">není na bazaaru (NPC, drop nebo aukce)</td><td>${subInfo(id, null, q)}</td></tr>`;
+        return `<tr><td>${icon(n)}${nm}</td><td>${nf0.format(q)}</td><td colspan="3" class="muted">není na bazaaru (NPC, drop nebo aukce)</td><td>${sub}</td></tr>`;
       }
-      return `<tr><td>${nm}</td><td>${nf0.format(q)}</td><td>${coins(pr.order)}</td><td>${coins(pr.order*q)}</td><td>${coins(pr.insta*q)}</td><td>${subInfo(id, pr.order, q)}</td></tr>`;
+      return `<tr><td>${icon(n)}${nm}</td><td>${nf0.format(q)}</td><td>${coins(pr.order)}</td><td>${coins(pr.order*q)}</td><td>${coins(pr.insta*q)}</td><td>${sub}</td></tr>`;
     }).join("");
     html += `<div class="tablebox ingr" style="margin-top:18px"><table>
       <thead><tr><th>Surovina</th><th>Množství</th><th>Za kus (buy order)</th><th>Celkem (buy ordery)</th><th>Celkem (okamžitě)</th><th>Vycraftit sám?</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
 
     const c = craftCost(rec), out = prices(cur);
+    const nodes = Object.entries(ing).map(([id,q]) => buildNode(id, q, memo, 1));
+    const list = new Map(), missing = new Set();
+    nodes.forEach(n => collect(n, list, missing));
+    const treeTotal = [...list.values()].reduce((a,e) => a + e.qty*e.unit, 0);
+    const treeOk = missing.size === 0;
+
     const box = (k, v, cls, s) => `<div><div class="k">${k}</div><div class="v ${cls||""}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
-    let sum = box("Cena craftu přes buy ordery", coins(c.order), "", c.missing.length ? "bez surovin mimo bazaar" : "levnější, ale musíš čekat")
+    const signed = v => (v >= 0 ? "+" : "") + coins(v);
+    let sum = box("Cena craftu přes buy ordery", coins(c.order), "", c.missing.length ? "bez surovin mimo bazaar" : "suroviny koupené hotové")
+            + box("Cena přes celý strom", treeOk ? coins(treeTotal) : "neúplná", treeOk && treeTotal < c.order - 0.5 ? "pos" : "",
+                  treeOk ? (treeTotal < c.order - 0.5 ? `o ${coins(c.order - treeTotal)} levnější` : "stejná, nic se nevyplatí craftit") : "některé suroviny nejsou na bazaaru")
             + box("Cena craftu okamžitě", coins(c.insta), "", "insta-buy všech surovin");
     if (out && out.offer != null){
       const rev = out.offer*(1-t)*count, revI = out.instaSell*(1-t)*count;
-      const prof = rev - c.order, profI = revI - c.insta;
-      sum += box("Prodej přes sell offer", coins(rev), "", `po dani, ${count > 1 ? count + " ks" : "1 ks"}`)
-           + box("Zisk na craft", (prof >= 0 ? "+" : "") + coins(prof), prof >= 0 ? "pos" : "neg", `ordery → sell offer, marže ${pct(prof/c.order)}`)
-           + box("Zisk při okamžitém obchodu", (profI >= 0 ? "+" : "") + coins(profI), profI >= 0 ? "pos" : "neg", "insta-buy → insta-sell");
+      const prof = rev - c.order, profT = rev - treeTotal, profI = revI - c.insta;
+      sum += box("Prodej přes sell offer", coins(rev), "", `po dani, ${count} ks`)
+           + box("Zisk na craft", signed(prof), prof >= 0 ? "pos" : "neg", `ordery → sell offer, marže ${pct(prof/c.order)}`);
+      if (treeOk) sum += box("Zisk se stromem", signed(profT), profT >= 0 ? "pos" : "neg", `marže ${pct(profT/treeTotal)}`);
+      sum += box("Zisk při okamžitém obchodu", signed(profI), profI >= 0 ? "pos" : "neg", "insta-buy → insta-sell");
     } else {
       sum += box("Prodej", "mimo bazaar", "", "porovnej cenu craftu s aukcemi (lowest BIN)");
     }
@@ -952,15 +1070,19 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
     if (c.missing.length){
       html += `<p class="note">Ceny nezahrnují: ${c.missing.map(id => esc(name(id))).join(", ")}. Tyhle suroviny se na bazaaru neprodávají.</p>`;
     }
+
+    html += `<h4 class="subsec">Celý strom craftu</h4>
+      <p class="note" style="margin-top:0">U každé suroviny vybírá levnější cestu: koupit hotovou přes buy order, nebo ji vycraftit z levnějších surovin (až 8 úrovní).</p>
+      <ul class="tree">${nodes.map(treeHtml).join("")}</ul>`;
+    const shop = [...list.values()].sort((a,b) => b.qty*b.unit - a.qty*a.unit);
+    html += `<h4 class="subsec">Nákupní seznam pro celý strom</h4>
+      <div class="tablebox ingr" style="margin-top:8px"><table>
+      <thead><tr><th>Koupit</th><th>Množství</th><th>Za kus (buy order)</th><th>Celkem</th></tr></thead>
+      <tbody>${shop.map(e => { const n = name(e.id); return `<tr><td>${icon(n)}${esc(n)}</td><td>${nf0.format(e.qty)}</td><td>${coins(e.unit)}</td><td>${coins(e.qty*e.unit)}</td></tr>`; }).join("")}
+      ${missing.size ? `<tr><td colspan="4" class="muted">Mimo bazaar sežeň: ${[...missing].map(id => esc(name(id))).join(", ")}</td></tr>` : ""}
+      </tbody></table></div>`;
     card.innerHTML = html;
     card.hidden = false;
-  }
-  function subInfo(id, buyPer, q){
-    const per = subCraft(id);
-    if (per == null) return `<span class="muted">–</span>`;
-    if (buyPer == null) return `craft za ${coins(per*q)}`;
-    const diff = (buyPer - per)*q;
-    return diff > 0 ? `<span class="cheaper">craft za ${coins(per*q)}, ušetříš ${coins(diff)}</span>` : `<span class="muted">koupit je levnější</span>`;
   }
   $("ccard").addEventListener("click", e => {
     const o = e.target.closest("[data-open]");
@@ -972,7 +1094,8 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
   // ---------- best crafts ----------
   const cols = [
     {key:"name", label:"Item"}, {key:null, label:"Kolekce"}, {key:"cost", label:"Cena craftu"},
-    {key:"rev", label:"Prodej (po dani)"}, {key:"profit", label:"Zisk / craft"}, {key:"margin", label:"Marže"}, {key:"weekly", label:"Objem / týden"}
+    {key:"rev", label:"Prodej (po dani)"}, {key:"profit", label:"Zisk / craft"}, {key:"treeProfit", label:"Zisk se stromem"},
+    {key:"margin", label:"Marže"}, {key:"weekly", label:"Objem / týden"}
   ];
   function renderHead(){
     $("chead").innerHTML = cols.map(c => {
@@ -984,7 +1107,7 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
   function renderBest(){
     renderHead();
     if (!products) return;
-    const t = tax(), out = [];
+    const t = tax(), out = [], memo = new Map();
     for (const id in db().recipes){
       const pr = prices(id);
       if (!pr || pr.offer == null || pr.weekly < 50000) continue;
@@ -992,18 +1115,23 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
       DB.recipes[id].r.forEach(rec => {
         const c = craftCost(rec);
         if (c.missing.length || !(c.order > 0)) return;
-        const rev = pr.offer*(1-t)*(rec.c||1), profit = rev - c.order;
-        if (!best || profit > best.profit) best = {id, name:name(id), cost:c.order, rev, profit, margin:profit/c.order, weekly:pr.weekly, q:DB.recipes[id].q};
+        let tc = 0;
+        for (const [ing, q] of Object.entries(ingredients(rec))){ const b = bestUnit(ing, memo, new Set([id])); tc += b ? b.unit*q : Infinity; }
+        tc = Math.min(tc, c.order);
+        const rev = pr.offer*(1-t)*(rec.c||1), profit = rev - c.order, treeProfit = rev - tc;
+        if (!best || treeProfit > best.treeProfit) best = {id, name:name(id), cost:c.order, rev, profit, treeProfit, margin:treeProfit/tc, weekly:pr.weekly, q:DB.recipes[id].q};
       });
-      if (best && best.profit > 0) out.push(best);
+      if (best && best.treeProfit > 0) out.push(best);
     }
     const k = state.sortKey, d = state.sortDir;
     out.sort((a,b) => k === "name" ? d*a.name.localeCompare(b.name,"cs") : d*(a[k]-b[k]));
     $("cbody").innerHTML = out.length ? out.slice(0,60).map(r => `<tr class="row" tabindex="0" data-id="${esc(r.id)}">
-        <td><span class="item">${esc(r.name)}</span>${r.margin > 0.4 ? '<span class="tag risk" title="Neobvykle vysoká marže, ověř ceny ve hře">riziko</span>' : ""}</td>
+        <td>${icon(r.name)}<span class="item">${esc(r.name)}</span>${r.margin > 0.4 ? '<span class="tag risk" title="Neobvykle vysoká marže, ověř ceny ve hře">riziko</span>' : ""}</td>
         <td>${r.q ? esc(r.q) : '<span class="muted">–</span>'}</td>
-        <td>${coins(r.cost)}</td><td>${coins(r.rev)}</td><td class="pos">${coins(r.profit)}</td><td>${pct(r.margin)}</td><td>${coins(r.weekly)}</td></tr>`).join("")
-      : `<tr><td colspan="7" class="empty">Teď se žádný craft nevyplácí.</td></tr>`;
+        <td>${coins(r.cost)}</td><td>${coins(r.rev)}</td>
+        <td class="${r.profit > 0 ? "pos" : "muted"}">${coins(r.profit)}</td><td class="pos">${coins(r.treeProfit)}</td>
+        <td>${pct(r.margin)}</td><td>${coins(r.weekly)}</td></tr>`).join("")
+      : `<tr><td colspan="8" class="empty">Teď se žádný craft nevyplácí.</td></tr>`;
   }
   $("chead").addEventListener("click", e => {
     const b = e.target.closest("button[data-key]"); if (!b) return;
@@ -1018,20 +1146,107 @@ h3.sec{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;font-size:22
 
   function renderAll(){ if (!$("tab-craft").hidden){ renderBest(); renderCard(); } }
   window.addEventListener("bazaar-updated", e => { products = e.detail; renderAll(); });
+  if (window.SB_STATE && window.SB_STATE.products) products = window.SB_STATE.products;
+  window.addEventListener("tab-shown", e => { if (e.detail === "craft"){ db(); renderAll(); } });
   $("tax").addEventListener("change", renderAll);
-
-  // ---------- tabs ----------
-  function showTab(name){
-    const craft = name === "craft";
-    $("tab-flip").hidden = craft; $("tab-craft").hidden = !craft;
-    $("tabFlip").setAttribute("aria-selected", String(!craft));
-    $("tabCraft").setAttribute("aria-selected", String(craft));
-    if (craft){ db(); renderAll(); }
+})();
+</script>
+<script>
+// Tabs: #flip, #craft, #npc
+(function(){
+  const tabs = [...document.querySelectorAll(".tab[data-tab]")];
+  function show(name){
+    if (!tabs.some(t => t.dataset.tab === name)) name = "flip";
+    tabs.forEach(t => {
+      const on = t.dataset.tab === name;
+      t.setAttribute("aria-selected", String(on));
+      document.getElementById("tab-" + t.dataset.tab).hidden = !on;
+    });
+    window.dispatchEvent(new CustomEvent("tab-shown", {detail: name}));
   }
-  $("tabFlip").addEventListener("click", () => { location.hash = "flip"; });
-  $("tabCraft").addEventListener("click", () => { location.hash = "craft"; });
-  window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
-  showTab(location.hash.slice(1));
+  tabs.forEach(t => t.addEventListener("click", () => { location.hash = t.dataset.tab; }));
+  window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const { coins, pct, nf0, esc, icon, wikiLink } = window.SBUI;
+  let products = null, npc = null, names = {};
+  const state = { sortKey:"perHour", sortDir:-1 };
+  const cols = [
+    {key:"name", label:"Item"}, {key:"insta", label:"Insta-buy"}, {key:"order", label:"Buy order"}, {key:"npc", label:"NPC výkup"},
+    {key:"pI", label:"Zisk / kus (insta)"}, {key:"pO", label:"Zisk / kus (order)"}, {key:"margin", label:"Marže"},
+    {key:"weekly", label:"Objem / týden"}, {key:"perHour", label:"Zisk / hod"}
+  ];
+  function parseAmount(s){
+    const m = String(s||"").trim().replace(/\s/g,"").replace(",",".").match(/^([\d.]+)([kmb])?$/i);
+    if (!m) return Number(s) || 0;
+    return parseFloat(m[1]) * ({k:1e3,m:1e6,b:1e9}[(m[2]||"").toLowerCase()] || 1);
+  }
+  const titleCase = id => id.toLowerCase().split(/[_:]/).filter(Boolean).map(w => w[0].toUpperCase()+w.slice(1)).join(" ");
+
+  function rows(){
+    const budget = parseAmount(($("budget")||{}).value) || Infinity;
+    const share = Math.min(100, Math.max(1, +(($("share")||{}).value) || 10))/100;
+    const out = [];
+    for (const id in products){
+      const n = npc[id];
+      if (!n) continue;
+      const p = products[id], offers = p.buy_summary || [], orders = p.sell_summary || [], qs = p.quick_status || {};
+      const insta = offers.length ? offers[0].pricePerUnit : null;
+      const order = orders.length ? orders[0].pricePerUnit + 0.1 : null;
+      const pI = insta != null ? n - insta : -Infinity;
+      const pO = order != null ? n - order : -Infinity;
+      if (pI <= 0 && pO <= 0) continue;
+      const vI = qs.buyMovingWeek || 0, vO = qs.sellMovingWeek || 0;
+      if (vI + vO < 1000) continue;
+      const hI = pI > 0 ? pI * Math.min(vI/168*share, budget/insta, offers[0].amount) : 0;
+      const hO = pO > 0 ? pO * Math.min(vO/168*share, budget/order) : 0;
+      const name = names[id] || titleCase(id);
+      const bestP = Math.max(pI, pO), base = pO >= pI ? order : insta;
+      out.push({id, name, insta, order, npc:n, pI, pO, margin: bestP/base, weekly: Math.max(vI, vO), perHour: Math.max(hI, hO)});
+    }
+    const k = state.sortKey, d = state.sortDir;
+    out.sort((a,b) => k === "name" ? d*a.name.localeCompare(b.name,"cs") : d*((a[k] ?? -Infinity) - (b[k] ?? -Infinity)));
+    return out;
+  }
+  function render(){
+    if ($("tab-npc").hidden) return;
+    $("nhead").innerHTML = cols.map(c => {
+      const s = state.sortKey === c.key;
+      return `<th scope="col"${s ? ` aria-sort="${state.sortDir<0?"descending":"ascending"}"` : ""}><button type="button" data-key="${c.key}">${c.label}${s ? (state.sortDir<0?" ▾":" ▴") : ""}</button></th>`;
+    }).join("");
+    if (!products || !npc) return;
+    const list = rows();
+    const money = v => v > 0 ? `<span class="pos">${coins(v)}</span>` : '<span class="muted">–</span>';
+    $("nbody").innerHTML = list.length ? list.slice(0,100).map(r => `<tr>
+        <td>${icon(r.name)}<span class="item">${esc(r.name)}</span> <span class="muted" style="font-size:13px">${wikiLink(r.name, "wiki")}</span></td>
+        <td>${r.insta != null ? coins(r.insta) : "–"}</td><td>${r.order != null ? coins(r.order) : "–"}</td>
+        <td class="gold">${coins(r.npc)}</td><td>${money(r.pI)}</td><td>${money(r.pO)}</td>
+        <td>${pct(r.margin)}</td><td>${coins(r.weekly)}</td><td class="gold">${coins(r.perHour)}</td></tr>`).join("")
+      : `<tr><td colspan="9" class="empty">Teď není na bazaaru nic levnějšího než výkup u NPC. Zkus to za chvíli znovu.</td></tr>`;
+  }
+  $("nhead").addEventListener("click", e => {
+    const b = e.target.closest("button[data-key]"); if (!b) return;
+    if (state.sortKey === b.dataset.key) state.sortDir *= -1; else { state.sortKey = b.dataset.key; state.sortDir = b.dataset.key === "name" ? 1 : -1; }
+    render();
+  });
+  function setItems(items){
+    npc = {};
+    (items || []).forEach(it => {
+      if (it.npc_sell_price > 0) npc[it.id] = it.npc_sell_price;
+      if (it.name) names[it.id] = String(it.name).replace(/§./g,"");
+    });
+    render();
+  }
+  window.addEventListener("items-loaded", e => setItems(e.detail));
+  if (window.SB_STATE){ if (window.SB_STATE.products) products = window.SB_STATE.products; if (window.SB_STATE.items) setItems(window.SB_STATE.items); }
+  window.addEventListener("bazaar-updated", e => { products = e.detail; render(); });
+  window.addEventListener("tab-shown", e => { if (e.detail === "npc") render(); });
+  ["budget","share"].forEach(id => $(id) && $(id).addEventListener("change", render));
 })();
 </script>
 </body>
