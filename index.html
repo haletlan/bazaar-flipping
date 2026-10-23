@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bazaar Flipper – SkyBlock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#E6EAEE; --surface:#F7F9FA; --surface-2:#DDE3E8; --ink:#1B2433; --muted:#5B6676;
+  --line:#C6CED6; --gold:#A87A0E; --gold-soft:#F1DFAE; --emerald:#1F7A4D; --redstone:#B1352A;
+  --focus:#2D5BD1;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --bg:#121926; --surface:#1A2333; --surface-2:#222D40; --ink:#E4E9F0; --muted:#97A3B5;
+    --line:#2F3B50; --gold:#E2B33C; --gold-soft:#3A3220; --emerald:#4CC38A; --redstone:#F0705F;
+    --focus:#7EA2FF;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 48px}
+h1,h2,.display{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:24px}
+h1{font-size:clamp(28px,4vw,40px);font-weight:800;letter-spacing:-.02em;margin:0;line-height:1.05}
+.sub{color:var(--muted);margin:6px 0 0;max-width:60ch}
+.status{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--emerald)} .dot.err{background:var(--redstone)} .dot.load{background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.dot.load{animation:none}}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--ink);color:var(--surface);border:0;border-radius:8px;padding:8px 14px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* Hero: the best flip right now */
+.hero{display:grid;grid-template-columns:1fr auto;gap:8px 32px;align-items:end;background:var(--surface);border-left:6px solid var(--gold);border-radius:4px 14px 14px 4px;padding:22px 26px;margin-bottom:22px}
+.hero .lbl{color:var(--muted);font-size:14px;margin:0}
+.hero .name{font-size:clamp(26px,3.6vw,38px);font-weight:700;margin:2px 0 0;line-height:1.1}
+.hero .route{color:var(--muted);margin:6px 0 0;font-variant-numeric:tabular-nums}
+.hero .big{text-align:right}
+.hero .big .v{font-family:"Bricolage Grotesque",sans-serif;font-size:clamp(30px,4.4vw,48px);font-weight:800;color:var(--gold);line-height:1;font-variant-numeric:tabular-nums}
+.hero .big .u{color:var(--muted);font-size:14px}
+@media (max-width:640px){.hero{grid-template-columns:1fr}.hero .big{text-align:left}}
+
+/* Controls */
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select{font:inherit;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:100%}
+.field.wide{grid-column:span 2}
+@media (max-width:480px){.field.wide{grid-column:span 1}}
+.check{flex-direction:row;align-items:center;gap:8px;padding-top:20px}
+.check label{color:var(--ink);font-size:14px}
+
+/* Table */
+.tablebox{background:var(--surface);border-radius:12px;overflow-x:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:860px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;background:var(--surface-2);font-size:13px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line)}
+thead th button{background:none;border:0;color:inherit;font-weight:inherit;padding:0}
+thead th[aria-sort] button{color:var(--ink)}
+tbody tr.row{border-top:1px solid var(--line);cursor:pointer}
+tbody tr.row:hover{background:var(--surface-2)}
+tbody tr.row[aria-expanded="true"]{background:var(--surface-2)}
+.item{font-weight:600}
+.pos{color:var(--emerald);font-weight:600}
+.gold{color:var(--gold);font-weight:600}
+.bar{display:inline-block;height:6px;border-radius:3px;background:var(--gold);vertical-align:middle;margin-right:8px;opacity:.8}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:999px;margin-left:8px;font-weight:500;background:var(--gold-soft);color:var(--ink)}
+.tag.risk{background:transparent;border:1px solid var(--redstone);color:var(--redstone)}
+.detail td{padding:0}
+.book{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:14px 18px 18px;text-align:left}
+.book h3{font-size:14px;margin:0 0 6px;font-weight:600}
+.book table{min-width:0}
+.book td,.book th{padding:3px 8px;font-size:13px}
+.book th{background:none;position:static}
+.note{color:var(--muted);font-size:13px;margin:14px 2px 0;max-width:80ch}
+.empty{padding:36px;text-align:center;color:var(--muted)}
+.error{background:var(--surface);border:1px solid var(--redstone);border-radius:12px;padding:16px 20px;margin-bottom:18px}
+.error strong{color:var(--redstone)}
+@media (max-width:640px){.book{grid-template-columns:1fr}}
+footer{color:var(--muted);font-size:13px;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Bazaar Flipper</h1>
+      <p class="sub">Najde itemy, na kterých vyděláš rozdílem mezi buy orderem a sell offerem. Data z Hypixel API, obnovuje se každou minutu.</p>
+    </div>
+    <div class="status">
+      <span class="dot" id="dot"></span><span id="statusText">Načítám…</span>
+      <button class="btn ghost" id="refreshBtn" type="button">Obnovit</button>
+    </div>
+  </header>
+
+  <div id="errorBox" class="error" hidden></div>
+
+  <section class="hero" id="hero" aria-live="polite">
+    <div>
+      <p class="lbl">Nejlepší flip právě teď</p>
+      <p class="name" id="heroName">–</p>
+      <p class="route" id="heroRoute"></p>
+    </div>
+    <div class="big">
+      <div class="v" id="heroValue">–</div>
+      <div class="u">odhad zisku za hodinu</div>
+    </div>
+  </section>
+
+  <section class="controls" aria-label="Filtry">
+    <div class="field wide"><label for="q">Hledat item</label><input id="q" type="search" placeholder="např. enchanted, diamond, wise"></div>
+    <div class="field"><label for="budget">Kapitál (coins)</label><input id="budget" type="text" inputmode="numeric" value="10M"></div>
+    <div class="field"><label for="minVol">Min. objem za týden</label><input id="minVol" type="text" inputmode="numeric" value="100k"></div>
+    <div class="field"><label for="tax">Daň bazaaru (%)</label>
+      <select id="tax">
+        <option value="1.25" selected>1,25 % (základ)</option>
+        <option value="1.125">1,125 % (Bazaar Flipper I)</option>
+        <option value="1">1 % (Bazaar Flipper II)</option>
+      </select>
+    </div>
+    <div class="field"><label for="share">Tvůj podíl na objemu (%)</label><input id="share" type="number" min="1" max="100" step="1" value="10"></div>
+    <div class="field check"><input id="hideRisk" type="checkbox" checked><label for="hideRisk">Skrýt rizikové</label></div>
+    <div class="field check"><input id="auto" type="checkbox" checked><label for="auto">Automaticky obnovovat</label></div>
+  </section>
+
+  <div class="tablebox">
+    <table>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="tbody"><tr><td colspan="8" class="empty">Načítám data z bazaaru…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="note" id="countNote"></p>
+  <p class="note">Jak se počítá: buy order dáš o 0,1 nad nejvyšší existující, sell offer o 0,1 pod nejnižší. Zisk za kus je prodejní cena po dani mínus nákupní. Zisk za hodinu = zisk za kus × počet kusů, který reálně stihneš za hodinu (tvůj podíl z menšího z obou týdenních objemů ÷ 168), omezený kapitálem. Je to odhad: konkurence může tvůj order během minuty přebít.</p>
+  <p class="note">Rizikové = marže nad 40 % nebo méně než 3 konkurenční ordery, což často znamená manipulaci s cenou nebo item, který se těžko prodává.</p>
+
+  <footer>Není spojeno s Hypixel Inc. ani jím schváleno. Data: api.hypixel.net (bez API klíče).</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const API = "https://api.hypixel.net/v2/skyblock/bazaar";
+  const ITEMS_API = "https://api.hypixel.net/v2/resources/skyblock/items";
+  const REFRESH_MS = 60000;
+  const MAX_ROWS = 150;
+
+  const $ = id => document.getElementById(id);
+  const state = { products:null, lastUpdated:0, names:{}, sortKey:"perHour", sortDir:-1, open:null, timer:null, loading:false };
+
+  const columns = [
+    {key:"name", label:"Item", num:false},
+    {key:"buy", label:"Buy order"},
+    {key:"sell", label:"Sell offer"},
+    {key:"profit", label:"Zisk / kus"},
+    {key:"margin", label:"Marže"},
+    {key:"weekly", label:"Objem / týden"},
+    {key:"perHour", label:"Zisk / hod"},
+    {key:"orders", label:"Konkurence"}
+  ];
+
+  // ---------- formatting ----------
+  const nf1 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:1, minimumFractionDigits:1});
+  const nf0 = new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0});
+  function coins(n){
+    const a = Math.abs(n);
+    if (a >= 1e9) return nf1.format(n/1e9)+" B";
+    if (a >= 1e6) return nf1.format(n/1e6)+" M";
+    if (a >= 1e4) return nf1.format(n/1e3)+" k";
+    if (a >= 100) return nf0.format(n);
+    return nf1.format(n);
+  }
+  function parseAmount(s){
+    if (!s) return 0;
+    const m = String(s).trim().replace(/\s/g,"").replace(",",".").match(/^([\d.]+)\s*([kmb])?$/i);
+    if (!m) return Number(s) || 0;
+    const mult = {k:1e3,m:1e6,b:1e9}[(m[2]||"").toLowerCase()] || 1;
+    return parseFloat(m[1]) * mult;
+  }
+  const ROMAN = ["","I","II","III","IV","V","VI","VII","VIII","IX","X"];
+  function titleCase(s){ return s.toLowerCase().split("_").filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(" "); }
+  function prettyId(id){
+    if (state.names[id]) return state.names[id];
+    let m = id.match(/^ENCHANTMENT_(ULTIMATE_)?(.+?)_(\d+)$/);
+    if (m){ const lvl = +m[3]; return (m[1] ? "Ultimate " : "") + titleCase(m[2]) + " " + (ROMAN[lvl] || lvl); }
+    m = id.match(/^ESSENCE_(.+)$/);
+    if (m) return titleCase(m[1]) + " Essence";
+    return titleCase(id.replace(/:/g,"_"));
+  }
+  function stripColor(s){ return String(s).replace(/§./g,""); }
+  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+  // ---------- data ----------
+  async function loadNames(){
+    try {
+      const r = await fetch(ITEMS_API);
+      if (!r.ok) return;
+      const j = await r.json();
+      (j.items||[]).forEach(it => { if (it.id && it.name) state.names[it.id] = stripColor(it.name); });
+      if (state.products) render();
+    } catch(e){ /* names are optional; fall back to formatted IDs */ }
+  }
+
+  async function load(){
+    if (state.loading) return;
+    state.loading = true;
+    setStatus("load","Načítám…");
+    try {
+      const r = await fetch(API, {cache:"no-store"});
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      if (!j.success) throw new Error(j.cause || "API vrátilo chybu");
+      state.products = j.products;
+      state.lastUpdated = j.lastUpdated || Date.now();
+      $("errorBox").hidden = true;
+      setStatus("ok", "Aktualizováno " + new Date(state.lastUpdated).toLocaleTimeString("cs-CZ"));
+      render();
+    } catch(e){
+      setStatus("err","Data se nepodařilo načíst");
+      const box = $("errorBox");
+      box.hidden = false;
+      box.innerHTML = "<strong>Data z Hypixel API se nenačetla</strong> (" + esc(e.message) + "). " +
+        "Zkontroluj připojení k internetu. Pokud soubor otevíráš přímo z disku a prohlížeč požadavek blokuje, spusť ho přes lokální server " +
+        "(např. <code>npx serve</code> nebo <code>python -m http.server</code> ve složce se souborem) nebo ho nahraj na hosting. " +
+        "Další pokus proběhne automaticky.";
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  function setStatus(kind, text){
+    $("dot").className = "dot " + kind;
+    $("statusText").textContent = text;
+  }
+
+  function compute(){
+    const tax = parseFloat($("tax").value)/100;
+    const budget = parseAmount($("budget").value);
+    const minVol = parseAmount($("minVol").value);
+    const share = Math.min(100, Math.max(1, +$("share").value || 10))/100;
+    const q = $("q").value.trim().toLowerCase();
+    const hideRisk = $("hideRisk").checked;
+
+    const out = [];
+    for (const id in state.products){
+      const p = state.products[id];
+      const offers = p.buy_summary || [];   // sell offers – what you insta-buy from
+      const orders = p.sell_summary || [];  // buy orders – what you insta-sell into
+      if (!offers.length || !orders.length) continue;
+      const qs = p.quick_status || {};
+      const buy = orders[0].pricePerUnit + 0.1;
+      const sell = offers[0].pricePerUnit - 0.1;
+      const profit = sell*(1-tax) - buy;
+      if (!(profit > 0)) continue;
+      if (budget > 0 && buy > budget) continue;
+      const weekly = Math.min(qs.buyMovingWeek||0, qs.sellMovingWeek||0);
+      if (weekly < minVol) continue;
+      const name = prettyId(id);
+      if (q && !name.toLowerCase().includes(q) && !id.toLowerCase().includes(q)) continue;
+      const margin = profit / buy;
+      const perHourUnits = Math.min(weekly/168*share, budget > 0 ? budget/buy : Infinity);
+      const perHour = profit * perHourUnits;
+      const competition = (orders[0].orders||0) + (offers[0].orders||0);
+      const reasons = [];
+      if (margin > 0.4) reasons.push("vysoká marže");
+      if (competition < 3) reasons.push("málo orderů");
+      const risky = reasons.length > 0;
+      if (hideRisk && risky) continue;
+      out.push({id, name, buy, sell, profit, margin, weekly, perHour, perHourUnits, orders:competition, risky, reasons, offers, ordersBook:orders});
+    }
+    const k = state.sortKey, d = state.sortDir;
+    out.sort((a,b) => k === "name" ? d*a.name.localeCompare(b.name,"cs") : d*(a[k]-b[k]));
+    return out;
+  }
+
+  // ---------- render ----------
+  function renderHead(){
+    $("headRow").innerHTML = columns.map(c => {
+      const sorted = state.sortKey === c.key;
+      const aria = sorted ? ` aria-sort="${state.sortDir<0?"descending":"ascending"}"` : "";
+      const arrow = sorted ? (state.sortDir<0 ? " ▾" : " ▴") : "";
+      return `<th scope="col"${aria}><button type="button" data-key="${c.key}">${c.label}${arrow}</button></th>`;
+    }).join("");
+  }
+
+  function bookTable(rows, title){
+    const body = rows.slice(0,6).map(r =>
+      `<tr><td>${coins(r.pricePerUnit)}</td><td>${nf0.format(r.amount)}</td><td>${r.orders}</td></tr>`).join("");
+    return `<div><h3>${title}</h3><table><thead><tr><th>Cena</th><th>Kusů</th><th>Orderů</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  function render(){
+    renderHead();
+    const rows = compute();
+    const maxPH = rows.reduce((m,r)=>Math.max(m,r.perHour),0) || 1;
+
+    const best = rows.slice().sort((a,b)=>b.perHour-a.perHour)[0];
+    if (best){
+      $("heroName").textContent = best.name;
+      $("heroRoute").textContent = `Buy order za ${coins(best.buy)}, sell offer za ${coins(best.sell)}, zisk ${coins(best.profit)} na kus (${nf1.format(best.margin*100)} %), zhruba ${nf0.format(best.perHourUnits)} kusů za hodinu`;
+      $("heroValue").textContent = coins(best.perHour);
+    } else {
+      $("heroName").textContent = "Nic nevyhovuje filtrům";
+      $("heroRoute").textContent = "Sniž minimální objem nebo zvyš kapitál.";
+      $("heroValue").textContent = "–";
+    }
+
+    if (!rows.length){
+      $("tbody").innerHTML = `<tr><td colspan="8" class="empty">Žádný item nesplňuje filtry. Zkus snížit minimální objem nebo vypnout skrývání rizikových.</td></tr>`;
+      $("countNote").textContent = "";
+      return;
+    }
+
+    const shown = rows.slice(0, MAX_ROWS);
+    $("tbody").innerHTML = shown.map(r => {
+      const open = state.open === r.id;
+      const tag = r.risky ? `<span class="tag risk" title="${esc(r.reasons.join(", "))}">riziko</span>` : "";
+      const w = Math.max(2, Math.round(r.perHour/maxPH*60));
+      let html = `<tr class="row" tabindex="0" data-id="${esc(r.id)}" aria-expanded="${open}">
+        <td><span class="item">${esc(r.name)}</span>${tag}</td>
+        <td>${coins(r.buy)}</td>
+        <td>${coins(r.sell)}</td>
+        <td class="pos">${coins(r.profit)}</td>
+        <td>${nf1.format(r.margin*100)} %</td>
+        <td>${coins(r.weekly)}</td>
+        <td class="gold"><span class="bar" style="width:${w}px"></span>${coins(r.perHour)}</td>
+        <td>${r.orders}</td></tr>`;
+      if (open){
+        html += `<tr class="detail"><td colspan="8"><div class="book">
+          ${bookTable(r.ordersBook, "Buy ordery (sem prodáváš okamžitě)")}
+          ${bookTable(r.offers, "Sell offery (odsud kupuješ okamžitě)")}
+        </div></td></tr>`;
+      }
+      return html;
+    }).join("");
+    $("countNote").textContent = rows.length > MAX_ROWS
+      ? `Zobrazeno ${MAX_ROWS} z ${rows.length} ziskových itemů.`
+      : `${rows.length} ziskových itemů.`;
+  }
+
+  // ---------- events ----------
+  $("headRow").addEventListener("click", e => {
+    const b = e.target.closest("button[data-key]");
+    if (!b) return;
+    const k = b.dataset.key;
+    if (state.sortKey === k) state.sortDir *= -1;
+    else { state.sortKey = k; state.sortDir = k === "name" ? 1 : -1; }
+    render();
+  });
+  function toggleRow(tr){
+    const id = tr.dataset.id;
+    state.open = state.open === id ? null : id;
+    render();
+    const again = document.querySelector(`tr.row[data-id="${CSS.escape(id)}"]`);
+    if (again) again.focus();
+  }
+  $("tbody").addEventListener("click", e => { const tr = e.target.closest("tr.row"); if (tr) toggleRow(tr); });
+  $("tbody").addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const tr = e.target.closest("tr.row"); if (!tr) return;
+    e.preventDefault(); toggleRow(tr);
+  });
+  ["q","budget","minVol","tax","share","hideRisk"].forEach(id => {
+    $(id).addEventListener("input", () => { if (state.products) render(); });
+    $(id).addEventListener("change", () => { if (state.products) render(); });
+  });
+  $("refreshBtn").addEventListener("click", load);
+  function schedule(){
+    clearInterval(state.timer);
+    if ($("auto").checked) state.timer = setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
+  }
+  $("auto").addEventListener("change", schedule);
+
+  // remember settings for this browser
+  const SAVED = ["budget","minVol","tax","share"];
+  try {
+    const s = JSON.parse(localStorage.getItem("bzflip-settings") || "{}");
+    SAVED.forEach(k => { if (s[k] != null) $(k).value = s[k]; });
+    if (s.hideRisk != null) $("hideRisk").checked = s.hideRisk;
+  } catch(e){}
+  function save(){
+    try {
+      const s = {}; SAVED.forEach(k => s[k] = $(k).value); s.hideRisk = $("hideRisk").checked;
+      localStorage.setItem("bzflip-settings", JSON.stringify(s));
+    } catch(e){}
+  }
+  SAVED.concat("hideRisk").forEach(id => $(id).addEventListener("change", save));
+
+  renderHead();
+  load();
+  loadNames();
+  schedule();
+})();
+</script>
+</body>
+</html>
